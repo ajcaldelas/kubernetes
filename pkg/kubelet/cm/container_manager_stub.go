@@ -20,6 +20,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/go-logr/logr"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/klog/v2"
 
@@ -43,12 +44,14 @@ import (
 type containerManagerStub struct {
 	shouldResetExtendedResourceCapacity bool
 	extendedPluginResources             v1.ResourceList
+	logger                              logr.Logger
 }
 
 var _ ContainerManager = &containerManagerStub{}
 
-func (cm *containerManagerStub) Start(_ context.Context, _ *v1.Node, _ ActivePodsFunc, _ GetNodeFunc, _ config.SourcesReady, _ status.PodStatusProvider, _ internalapi.RuntimeService, _ bool) error {
+func (cm *containerManagerStub) Start(ctx context.Context, _ *v1.Node, _ ActivePodsFunc, _ GetNodeFunc, _ config.SourcesReady, _ status.PodStatusProvider, _ internalapi.RuntimeService, _ bool) error {
 	klog.V(2).InfoS("Starting stub container manager")
+	cm.logger = klog.FromContext(ctx)
 	return nil
 }
 
@@ -125,7 +128,7 @@ func (cm *containerManagerStub) UpdatePluginResources(*schedulerframework.NodeIn
 }
 
 func (cm *containerManagerStub) InternalContainerLifecycle() InternalContainerLifecycle {
-	return &internalContainerLifecycleImpl{cpumanager.NewFakeManager(), memorymanager.NewFakeManager(), topologymanager.NewFakeManager()}
+	return &internalContainerLifecycleImpl{cpumanager.NewFakeManager(cm.logger), memorymanager.NewFakeManager(), topologymanager.NewFakeManager()}
 }
 
 func (cm *containerManagerStub) GetPodCgroupRoot() string {
